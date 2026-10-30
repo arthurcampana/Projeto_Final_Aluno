@@ -208,7 +208,7 @@ def identity_stitching(df: DataFrame) -> DataFrame:
         .rowsBetween(Window.unboundedPreceding, Window.unboundedFollowing)
     )
     return df.withColumn(
-        "user_id", F.first("user_id", ignorenull=True).over(w))
+        "user_id", F.first("user_id", True).over(w))
 
 
 # ── R8: sessionização ───────────────────────────────────────────────
