@@ -24,6 +24,39 @@ docker compose run --rm app python -m explorador.workflows pipeline/workflows/<n
 
 Veja [explorador/README.md](../explorador/README.md#glue--workflows).
 
+## Os jobs deste pipeline
+
+Oito jobs, um por etapa, cada um num arquivo próprio (requisitos R1–R11). Cada um só inicia se a camada de que depende já existir (R2); caso contrário, ele para e diz o que rodar antes.
+
+| Job | Lê | Grava | Tabelas que produz |
+| --- | --- | --- | --- |
+| `01_bronze_ingestao.py` | landing | bronze (append) | — |
+| `02_silver.py` | bronze | silver (eventos, `itens`, `eventos_rejeitados`) | — |
+| `03_gold_funil.py` | silver | gold | `funil_compra`, `funil_lead` |
+| `04_gold_engajamento.py` | silver | gold | `sessoes`, `retencao_video`, `buscas_faq`, `saidas_downloads` |
+| `05_gold_receita.py` | silver + `silver/itens` | gold | `receita_diaria`, `taxa_reembolso`, `adesao_order_bump`, `lead_para_compra` |
+| `06_gold_ml.py` | silver | gold | `propensao_sessao`, `metricas_modelo`, `segmentos_visitantes` |
+| `07_gold_mapa_calor.py` | silver | gold | `mapa_calor_cliques`, `mapa_calor_rolagem` |
+| `08_exporta_mapa_calor.py` | gold (mapa de calor) | `site/mapa_calor.js` | — (R11) |
+
+Para rodar um job só (ex.: a Gold de engajamento):
+
+```bash
+docker compose run --rm app python pipeline/04_gold_engajamento.py
+```
+
+## Rodar o pipeline inteiro (R3)
+
+O script `rodar_tudo.py` roda os oito jobs em sequência, a partir da landing que já existe, e para no primeiro que falhar. Ele **não** gera dados; apenas orquestra.
+
+```bash
+docker compose run --rm app python pipeline/rodar_tudo.py
+```
+
+Pré-requisitos: floci no ar e landing populada (veja "Antes de começar", abaixo).
+
+Depois que o job de exportação (R11) roda, abra `site/index.html` no navegador e clique em **Mapa de calor**, no painel lateral. O mapa só acende depois de o pipeline gerar `site/mapa_calor.js` (um resultado gerado, que não entra no controle de versão).
+
 ## Falando com o S3
 
 O pipeline acessa o bucket **só pelo Spark**, com caminhos `s3a://datalake-tracking/...`. Nada de `boto3` aqui.
